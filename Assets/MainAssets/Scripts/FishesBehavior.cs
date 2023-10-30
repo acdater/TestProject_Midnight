@@ -32,6 +32,7 @@ public class FishesBehavior : MonoBehaviour
     private float _maxVelocity;
 
     [SerializeField]
+    [Tooltip("X - spread multiplier (than bigger then more distance among agents); Y - agents velocity multiplier; Z - average position weight (than bigger then closer agents are)")]
     private Vector3 _weights;
 
     private NativeArray<Vector3> _foodPositions;
@@ -41,8 +42,54 @@ public class FishesBehavior : MonoBehaviour
     private NativeArray<Vector3> _accelerations;
     private TransformAccessArray _transformAccessArray;
 
+    private float _spawnRate = 1.0f;
+    private int _reproductionRate = 1;
+
     private const float _boundsThreshold = 3.0f;
     private const float _multiplier = 10;
+
+    public int CountOfFishes { get => _numberOfFishes; }
+
+    public float MaxVelocity { set => _maxVelocity = value; }
+
+    public float SpawnRate { set => _spawnRate = value; }
+
+    public int ReproductionRate { set => _reproductionRate = value; }
+
+    public void AddFishAtPosition(Vector3 pos)
+    {
+        var chanceToInit = Random.Range(0.1f, 1.0f);
+
+        if (chanceToInit > _spawnRate)
+            return;
+
+        Debug.Log("Repro count:" + _reproductionRate);
+
+        for(int i=0; i<_reproductionRate; i++)
+        {
+            var newFish = Instantiate(_fishPrefab, pos, Quaternion.identity);
+            newFish.transform.position += Vector3.forward * i;
+            _transformAccessArray.Add(newFish.transform);
+
+            var positionsList = _positions.ToList();
+            positionsList.Add(newFish.transform.position);
+            _positions.Dispose();
+            _positions = new NativeArray<Vector3>(positionsList.ToArray(), Allocator.Persistent);
+
+            var velocitiesList = _velocities.ToList();
+            velocitiesList.Add(_velocities.Last());
+            _velocities.Dispose();
+            _velocities = new NativeArray<Vector3>(velocitiesList.ToArray(), Allocator.Persistent);
+
+            var accelerationList = _accelerations.ToList();
+            accelerationList.Add(_accelerations.Last());
+            _accelerations.Dispose();
+            _accelerations = new NativeArray<Vector3>(accelerationList.ToArray(), Allocator.Persistent);
+
+            _numberOfFishes = _transformAccessArray.length;
+            newFish.name += _numberOfFishes;
+        }
+    }
 
     void Start()
     {
@@ -54,14 +101,17 @@ public class FishesBehavior : MonoBehaviour
 
         for(int i=0; i<_numberOfFishes; i++)
         {
-            transforms[i] = Instantiate(_fishPrefab).transform;
+            var item = Instantiate(_fishPrefab);
+            item.name += i+1;
+            transforms[i] = item.transform;
             _velocities[i] = Random.insideUnitSphere;
         }
 
         _transformAccessArray = new TransformAccessArray(transforms);
-
+        
         _foodSpawner.AreaSize = _areaSize;
         _foodSpawner.Threshold = _boundsThreshold;
+        _foodSpawner.fishesBehaviour = this;
     }
 
     void Update()

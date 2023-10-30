@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class FoodSpawner : MonoBehaviour
 {
@@ -28,6 +30,8 @@ public class FoodSpawner : MonoBehaviour
     [SerializeField]
     private float _maxGenerateCount;
 
+    private Coroutine _generateCoroutine;
+
     private Vector3 Size => _areaSize * 0.5f;
 
     public IEnumerable<Vector3> GetFoodPositions() => _foodPositions;
@@ -35,11 +39,17 @@ public class FoodSpawner : MonoBehaviour
     public Vector3 AreaSize { set => _areaSize = value; }
     public float Threshold { set => _threshold = value; }
 
-    private Coroutine _generateCoroutine;
+    public FishesBehavior fishesBehaviour;
 
-    public void GenerateFood(int count)
+
+
+
+    public void GenerateFood()
     {
-        for(int i=0; i<count; i++)
+        var interval = Random.Range(_minGenerateInterval, _maxGenerateInterval);
+        var count = Random.Range(_minGenerateCount, _maxGenerateCount);
+
+        for (int i = 0; i < count; i++)
         {
             GenerateOneFoodPiece();
         }
@@ -57,7 +67,8 @@ public class FoodSpawner : MonoBehaviour
     private void GenerateOneFoodPiece()
     {
         var position = GeneratePosition();
-        Instantiate(_foodPrefab, position, Quaternion.identity);
+        var foodBehavior = Instantiate(_foodPrefab, position, Quaternion.identity);
+        foodBehavior.GetComponent<FoodBehaviour>().OnSpawnNewFishAt += SpawnNewFishAt;
         _foodPositions.Add(position);
     }
 
@@ -82,5 +93,10 @@ public class FoodSpawner : MonoBehaviour
 
         yield return new WaitForSeconds(interval);
         _generateCoroutine = null;
+    }
+
+    private void SpawnNewFishAt(Vector3 pos)
+    {
+        fishesBehaviour.AddFishAtPosition(pos);
     }
 }
